@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mundo Medieval | Exploración</title>
+    <style>
+        body { margin: 0; background: #2d5a27; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="juegoCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('juegoCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Configuración del jugador
+        const jugador = {
+            x: 100, y: 100, w: 40, h: 40, speed: 3, 
+            dx: 0, dy: 0, moviendo: false
+        };
+
+        const teclas = {};
+        window.addEventListener('keydown', (e) => teclas[e.key] = true);
+        window.addEventListener('keyup', (e) => teclas[e.key] = false);
+
+        // Lógica de movimiento
+        function actualizar() {
+            jugador.speed = teclas['Shift'] ? 6 : 3;
+            
+            if (teclas['w']) jugador.y -= jugador.speed;
+            if (teclas['s']) jugador.y += jugador.speed;
+            if (teclas['a']) jugador.x -= jugador.speed;
+            if (teclas['d']) jugador.x += jugador.speed;
+        }
+
+        // Renderizado (Mundo y Personaje)
+        function dibujar() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Dibujar "Tierra" (puedes picarla en el futuro detectando clic)
+            ctx.fillStyle = "#8b4513";
+            ctx.fillRect(200, 300, 50, 50); // Ejemplo de bloque
+
+            // Dibujar Personaje (Placeholder)
+            ctx.fillStyle = "#ffcc99";
+            ctx.fillRect(jugador.x, jugador.y, jugador.w, jugador.h);
+            
+            requestAnimationFrame(() => {
+                actualizar();
+                dibujar();
+            });
+        }
+
+        dibujar();
+
+        // Sistema de picar tierra al hacer clic
+        window.addEventListener('mousedown', (e) => {
+            console.log("Picar bloque en:", e.clientX, e.clientY);
+            // Aquí irá la lógica para borrar el bloque de tierra del array
+        });
+    </script>
+</body>
+</html>
