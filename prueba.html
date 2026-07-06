@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Damian y Agus | Medieval Saga</title>
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Pirata+One&display=swap" rel="stylesheet">
+    <style>
+        /* Cursor blindado universal */
+        * { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24'><path fill='white' d='M12 2L2 22l10-4 10 4z'/><path fill='gold' d='M12 4l8 16-8-3-8 3z'/></svg>") 12 12, auto !important; }
+
+        body { margin: 0; padding: 0; height: 100vh; overflow: hidden; background: #050505; 
+               font-family: 'MedievalSharp', cursive; color: #d4af37; }
+        
+        #overlay-clic { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; 
+                        justify-content: center; background: rgba(0,0,0,0.9); cursor: pointer !important; }
+
+        #main-content { opacity: 0; transition: opacity 1.5s ease-in; height: 100%; }
+
+        #fondo-canvas { position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none; }
+        
+        #contenedor-central { position: relative; z-index: 2; height: 100%; display: flex; 
+                             flex-direction: column; align-items: center; justify-content: center; }
+
+        .logo { font-size: 4rem; text-transform: uppercase; text-shadow: 0 0 25px rgba(212,175,55,0.7); 
+                border-bottom: 3px solid #d4af37; padding-bottom: 15px; letter-spacing: 4px; 
+                font-family: 'Pirata One', cursive; }
+
+        .btn-jugar { margin-top: 50px; padding: 12px 60px; font-size: 1.8rem; background: rgba(0,0,0,0.6); 
+                     color: #d4af37; border: 2px solid #d4af37; transition: all 0.3s ease; 
+                     text-transform: uppercase; font-family: 'MedievalSharp'; border-radius: 5px; 
+                     cursor: pointer !important; }
+        
+        .btn-jugar:hover { background: #d4af37; color: #000; transform: scale(1.05); box-shadow: 0 0 30px #d4af37; }
+
+        #panel-audio { position: absolute; bottom: 20px; right: 20px; z-index: 10; background: rgba(0,0,0,0.8); 
+                      padding: 10px 20px; border: 1px solid #d4af37; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+    <div id="overlay-clic" onclick="activarJuego()">
+        <h2 style="font-family:'MedievalSharp'; font-size: 2rem;">HAZ CLIC PARA COMENZAR LA SAGA</h2>
+    </div>
+
+    <div id="main-content">
+        <canvas id="fondo-canvas"></canvas>
+        <div id="contenedor-central">
+            <div class="logo">Damian y Agus</div>
+            <button class="btn-jugar" onclick="iniciarJuego()" onmouseover="sonar('hover')">Jugar</button>
+        </div>
+
+        <div id="panel-audio">
+            <span>Volumen</span>
+            <input type="range" min="0" max="1" step="0.1" value="0.5" oninput="ajustarVolumen(this.value)">
+        </div>
+    </div>
+
+    <audio id="audio-bg" loop><source src="https://www.dl.dropboxusercontent.com/s/729h12k39g8f/chiptune-forest.mp3" type="audio/mpeg"></audio>
+    <audio id="audio-click" src="https://www.soundjay.com/buttons/sounds/button-10.mp3"></audio>
+    <audio id="audio-hover" src="https://www.soundjay.com/buttons/sounds/button-30.mp3"></audio>
+
+    <script>
+        const audioBg = document.getElementById('audio-bg');
+
+        function activarJuego() {
+            document.getElementById('overlay-clic').style.display = 'none';
+            document.getElementById('main-content').style.opacity = '1';
+            audioBg.volume = 0.5;
+            audioBg.play();
+            iniciarCanvas();
+        }
+
+        function sonar(tipo) {
+            const el = document.getElementById('audio-' + tipo);
+            el.currentTime = 0;
+            el.play();
+        }
+
+        function iniciarJuego() {
+            sonar('click');
+            const btn = document.querySelector('.btn-jugar');
+            btn.innerText = "CARGANDO...";
+            setTimeout(() => window.location.href = 'personaje.html', 1500);
+        }
+
+        function iniciarCanvas() {
+            const canvas = document.getElementById('fondo-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            
+            const iconos = ['⚔️', '🛡️', '🏰', '👑'];
+            const objetos = Array.from({length: 25}, () => ({
+                icon: iconos[Math.floor(Math.random()*iconos.length)],
+                x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+                speed: Math.random() * 0.5 + 0.3
+            }));
+
+            function animar() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.shadowColor = "#d4af37";
+                ctx.shadowBlur = 8;
+                ctx.font = '30px serif';
+                
+                objetos.forEach(o => {
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+                    ctx.fillText(o.icon, o.x, o.y);
+                    o.y += o.speed;
+                    if (o.y > canvas.height + 50) o.y = -50;
+                });
+                requestAnimationFrame(animar);
+            }
+            animar();
+        }
+
+        function ajustarVolumen(v) { audioBg.volume = v; }
+    </script>
+</body>
+</html>
