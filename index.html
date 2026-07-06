@@ -2,96 +2,275 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Damian y Agus | Medieval Saga</title>
-    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Pirata+One&display=swap" rel="stylesheet">
+    <title>Mundo Medieval Damian y Agus | Exploración Activa</title>
     <style>
-        * { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24'><path fill='white' d='M12 2L2 22l10-4 10 4z'/><path fill='gold' d='M12 4l8 16-8-3-8 3z'/></svg>") 12 12, auto !important; }
-        body { margin: 0; padding: 0; height: 100vh; overflow: hidden; background: #050505; font-family: 'MedievalSharp', cursive; color: #d4af37; }
-        
-        #preloader { position: fixed; inset: 0; background: #000; z-index: 999; display: flex; align-items: center; justify-content: center; }
-        #main-content { opacity: 0; transition: opacity 1.5s ease-in; height: 100%; }
-        #fondo-canvas { position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none; }
-        
-        #contenedor-central { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .logo { font-size: 4rem; text-transform: uppercase; text-shadow: 0 0 25px rgba(212,175,55,0.7); border-bottom: 3px solid #d4af37; padding-bottom: 15px; letter-spacing: 4px; font-family: 'Pirata One', cursive; }
-        .btn-jugar { margin-top: 50px; padding: 12px 60px; font-size: 1.8rem; background: rgba(0,0,0,0.6); color: #d4af37; border: 2px solid #d4af37; transition: all 0.3s ease; text-transform: uppercase; font-family: 'MedievalSharp'; border-radius: 5px; cursor: pointer !important; }
-        .btn-jugar:hover { background: #d4af37; color: #000; transform: scale(1.05); box-shadow: 0 0 30px #d4af37; }
+        body { margin: 0; background: #1a1a1a; overflow: hidden; }
+        canvas { display: block; image-rendering: pixelated; }
+        #ui { position: fixed; top: 10px; left: 10px; color: white; font-family: monospace; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; pointer-events: none;}
     </style>
 </head>
 <body>
-
-    <div id="preloader"><h2 style="font-family:'MedievalSharp';">FORJANDO EL MUNDO...</h2></div>
-
-    <div id="main-content">
-        <canvas id="fondo-canvas"></canvas>
-        <div id="contenedor-central">
-            <div class="logo">Damian y Agus</div>
-            <button class="btn-jugar" onclick="iniciarJuego()" onmouseover="sonar('hover')">Jugar</button>
-        </div>
-    </div>
-
-    <audio id="audio-bg" loop><source src="https://www.dl.dropboxusercontent.com/s/729h12k39g8f/chiptune-forest.mp3" type="audio/mpeg"></audio>
-    <audio id="audio-click" src="https://www.soundjay.com/buttons/sounds/button-10.mp3"></audio>
-    <audio id="audio-hover" src="https://www.soundjay.com/buttons/sounds/button-30.mp3"></audio>
+    <div id="ui">Controles: WASD (Mover), Shift (Correr)</div>
+    <canvas id="juegoCanvas"></canvas>
 
     <script>
-        const audioBg = document.getElementById('audio-bg');
+        const canvas = document.getElementById('juegoCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function ajustarCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            ctx.imageRendering = 'pixelated'; // Forzar estilo pixel-art
+        }
+        window.addEventListener('resize', ajustarCanvas);
+        ajustarCanvas();
 
-        // Esta es la clave: apenas el usuario mueve el mouse, la música arranca
-        window.addEventListener('mousemove', () => {
-            if (audioBg.paused) {
-                audioBg.volume = 0.5;
-                audioBg.play();
+        // --- CONFIGURACIÓN DEL MUNDO (GRID Y TEXTURAS) ---
+        const TILE_SIZE = 32; // Tamaño de cada bloque
+        const MUNDO_ANCHO_TILES = 100; // 100 bloques de ancho
+        const MUNDO_ALTO_TILES = 100; // 100 bloques de alto
+
+        // Crear texturas con degradados y luces (Pasto y Tierra)
+        const texturas = {
+            pasto: ctx.createLinearGradient(0, 0, 0, TILE_SIZE),
+            tierra: ctx.createLinearGradient(0, 0, 0, TILE_SIZE)
+        };
+        
+        // Degradado complejo para el pasto (Verdes con luces)
+        texturas.pasto.addColorStop(0, '#7cfc00');   // Luz superior
+        texturas.pasto.addColorStop(0.2, '#32cd32'); // Verde base
+        texturas.pasto.addColorStop(0.8, '#228b22'); // Sombra media
+        texturas.pasto.addColorStop(1, '#006400');   // Sombra inferior
+
+        // Degradado para la tierra (Marrones profundos)
+        texturas.tierra.addColorStop(0, '#8b4513');  // Luz superior
+        texturas.tierra.addColorStop(0.5, '#5d2e0a');// Marrón base
+        texturas.tierra.addColorStop(1, '#3e1f07');  // Sombra inferior
+
+        // Generar el mapa (0 = pasto, 1 = tierra)
+        const mapa = [];
+        for (let y = 0; y < MUNDO_ALTO_TILES; y++) {
+            const fila = [];
+            for (let x = 0; x < MUNDO_ANCHO_TILES; x++) {
+                // Generar tierra aleatoriamente para crear parches
+                fila.push(Math.random() > 0.9 ? 1 : 0);
             }
-        }, { once: true });
-
-        // Preloader automático de 2 segundos
-        setTimeout(() => {
-            document.getElementById('preloader').style.display = 'none';
-            document.getElementById('main-content').style.opacity = '1';
-            iniciarCanvas();
-        }, 2000);
-
-        function sonar(tipo) {
-            const el = document.getElementById('audio-' + tipo);
-            el.currentTime = 0;
-            el.play();
+            mapa.push(fila);
         }
 
-        function iniciarJuego() {
-            sonar('click');
-            const btn = document.querySelector('.btn-jugar');
-            btn.innerText = "CARGANDO...";
-            setTimeout(() => window.location.href = 'mundo.html', 1500);
-        }
-
-        function iniciarCanvas() {
-            const canvas = document.getElementById('fondo-canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        // --- CONFIGURACIÓN DEL PERSONAJE Y CÁMARA ---
+        const jugador = {
+            // Posición en el mundo real (píxeles)
+            x: (MUNDO_ANCHO_TILES * TILE_SIZE) / 2, 
+            y: (MUNDO_ALTO_TILES * TILE_SIZE) / 2,
             
-            const iconos = ['⚔️', '🛡️', '🏰', '👑'];
-            const objetos = Array.from({length: 25}, () => ({
-                icon: iconos[Math.floor(Math.random()*iconos.length)],
-                x: Math.random() * canvas.width, y: Math.random() * canvas.height,
-                speed: Math.random() * 0.5 + 0.3
-            }));
+            // Dimensiones (pequeño y pixelado)
+            w: 16, 
+            h: 24, 
+            
+            // Físicas de movimiento
+            speedWalk: 2, 
+            speedRun: 4, 
+            dx: 0, 
+            dy: 0,
+            
+            // Estado de animación
+            frame: 0,
+            frameTimer: 0,
+            mirandoDerecha: true,
+            corriendo: false
+        };
 
-            function animar() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.shadowColor = "#d4af37";
-                ctx.shadowBlur = 8;
-                objetos.forEach(o => {
-                    ctx.font = '30px serif';
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-                    ctx.fillText(o.icon, o.x, o.y);
-                    o.y += o.speed;
-                    if (o.y > canvas.height + 50) o.y = -50;
-                });
-                requestAnimationFrame(animar);
-            }
-            animar();
+        const camara = {
+            x: 0,
+            y: 0,
+            // Factor de suavizado (0 = instantáneo, 1 = muy lento)
+            suavizado: 0.1 
+        };
+
+        // --- SISTEMA DE ENTRADA (TECLADO) ---
+        const teclas = {};
+        window.addEventListener('keydown', (e) => teclas[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', (e) => teclas[e.key.toLowerCase()] = false);
+
+        // --- BUCLE PRINCIPAL (ACTUALIZACIÓN Y RENDERIZADO) ---
+        function buclePrincipal() {
+            actualizarJugador();
+            actualizarCamara();
+            dibujarMundo();
+            dibujarJugador();
+            requestAnimationFrame(buclePrincipal);
         }
+
+        function actualizarJugador() {
+            // Determinar velocidad (Caminar vs Correr)
+            jugador.corriendo = teclas['shift'];
+            const speed = jugador.corriendo ? jugador.speedRun : jugador.speedWalk;
+            
+            // Reiniciar movimiento
+            jugador.dx = 0;
+            jugador.dy = 0;
+
+            // Procesar input WASD
+            if (teclas['w']) jugador.dy = -speed;
+            if (teclas['s']) jugador.dy = speed;
+            if (teclas['a']) { jugador.dx = -speed; jugador.mirandoDerecha = false; }
+            if (teclas['d']) { jugador.dx = speed; jugador.mirandoDerecha = true; }
+
+            // Normalizar movimiento diagonal (para que no corra más rápido en diagonal)
+            if (jugador.dx !== 0 && jugador.dy !== 0) {
+                const norm = Math.sqrt(jugador.dx * jugador.dx + jugador.dy * jugador.dy);
+                jugador.dx = (jugador.dx / norm) * speed;
+                jugador.dy = (jugador.dy / norm) * speed;
+            }
+
+            // Mover jugador y aplicar límites del mundo
+            jugador.x += jugador.dx;
+            jugador.y += jugador.dy;
+
+            // Límites del mundo (píxeles)
+            const mundoAnchoPx = MUNDO_ANCHO_TILES * TILE_SIZE;
+            const mundoAltoPx = MUNDO_ALTO_TILES * TILE_SIZE;
+
+            if (jugador.x < 0) jugador.x = 0;
+            if (jugador.x + jugador.w > mundoAnchoPx) jugador.x = mundoAnchoPx - jugador.w;
+            if (jugador.y < 0) jugador.y = 0;
+            if (jugador.y + jugador.h > mundoAltoPx) jugador.y = mundoAltoPx - jugador.h;
+        }
+
+        function actualizarCamara() {
+            // Calcular posición objetivo de la cámara (centrada en el jugador)
+            const targetX = jugador.x + jugador.w / 2 - canvas.width / 2;
+            const targetY = jugador.y + jugador.h / 2 - canvas.height / 2;
+
+            // Suavizado de cámara (Interpolación Lineal - LERP)
+            camara.x += (targetX - camara.x) * camara.suavizado;
+            camara.y += (targetY - camara.y) * camara.suavizado;
+
+            // Limitar cámara para que no muestre el vacío fuera del mundo
+            const maxCamX = (MUNDO_ANCHO_TILES * TILE_SIZE) - canvas.width;
+            const maxCamY = (MUNDO_ALTO_TILES * TILE_SIZE) - canvas.height;
+
+            if (camara.x < 0) camara.x = 0;
+            if (camara.y < 0) camara.y = 0;
+            if (camara.x > maxCamX) camara.x = maxCamX;
+            if (camara.y > maxCamY) camara.y = maxCamY;
+        }
+
+        function dibujarMundo() {
+            // Solo dibujar los tiles visibles en pantalla (Culling)
+            const startX = Math.floor(camara.x / TILE_SIZE);
+            const startY = Math.floor(camara.y / TILE_SIZE);
+            const endX = startX + Math.ceil(canvas.width / TILE_SIZE) + 1;
+            const endY = startY + Math.ceil(canvas.height / TILE_SIZE) + 1;
+
+            for (let y = startY; y < endY; y++) {
+                for (let x = startX; x < endX; x++) {
+                    // Validar límites del mapa array
+                    if (y >= 0 && y < MUNDO_ALTO_TILES && x >= 0 && x < MUNDO_ANCHO_TILES) {
+                        const tileType = mapa[y][x];
+                        
+                        // Calcular posición de dibujado relativa a la cámara
+                        const drawX = Math.floor(x * TILE_SIZE - camara.x);
+                        const drawY = Math.floor(y * TILE_SIZE - camara.y);
+
+                        // Aplicar textura con degradado
+                        ctx.fillStyle = tileType === 1 ? texturas.tierra : texturas.pasto;
+                        ctx.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
+
+                        // Opcional: Dibujar patrón de hierba/tierra pixelado para más detalle
+                        dibujarDetalleTile(drawX, drawY, tileType);
+                    }
+                }
+            }
+        }
+
+        function dibujarDetalleTile(x, y, tipo) {
+            // Pequeños puntos pixelados para dar textura
+            ctx.fillStyle = tipo === 1 ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
+            ctx.fillRect(x + 4, y + 4, 2, 2);
+            ctx.fillRect(x + TILE_SIZE - 8, y + TILE_SIZE - 8, 2, 2);
+            ctx.fillStyle = tipo === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+            ctx.fillRect(x + TILE_SIZE/2, y + TILE_SIZE/2, 2, 2);
+        }
+
+        function dibujarJugador() {
+            // Calcular posición de dibujado del jugador relativa a la cámara
+            const drawX = Math.floor(jugador.x - camara.x);
+            const drawY = Math.floor(jugador.y - camara.y);
+
+            // Actualizar timer de animación
+            if (jugador.dx !== 0 || jugador.dy !== 0) {
+                jugador.frameTimer++;
+                const animSpeed = jugador.corriendo ? 5 : 10; // Más rápido si corre
+                if (jugador.frameTimer > animSpeed) {
+                    jugador.frame = (jugador.frame + 1) % 4; // Bucle de 4 frames
+                    jugador.frameTimer = 0;
+                }
+            } else {
+                jugador.frame = 0; // Frame de 'idle' si está quieto
+            }
+
+            ctx.save();
+            
+            // Invertir personaje si mira a la izquierda
+            if (!jugador.mirandoDerecha) {
+                ctx.translate(drawX + jugador.w / 2, drawY + jugador.h / 2);
+                ctx.scale(-1, 1);
+                ctx.translate(-(drawX + jugador.w / 2), -(drawY + jugador.h / 2));
+            }
+
+            // 1. Sombra (Círculo ovalado oscuro a los pies)
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(drawX + jugador.w/2, drawY + jugador.h, 10, 4, 0, 0, Math.PI*2);
+            ctx.fill();
+
+            // Configuración de estilo del personaje pixelado (con degradados)
+            const colorCuerpo = ctx.createLinearGradient(drawX, drawY, drawX, drawY + jugador.h);
+            colorCuerpo.addColorStop(0, '#ffcc99'); // Piel luz
+            colorCuerpo.addColorStop(1, '#e0a366'); // Piel sombra
+
+            // 2. Cuerpo (Pequeño bloque principal)
+            ctx.fillStyle = colorCuerpo;
+            ctx.fillRect(drawX + 4, drawY + 4, jugador.w - 8, jugador.h - 8);
+
+            // 3. Cabeza (Punto superior)
+            ctx.fillStyle = '#ffcc99';
+            ctx.fillRect(drawX + 6, drawY, jugador.w - 12, 6);
+
+            // 4. Extremidades (Patas y Manos)
+            ctx.fillStyle = '#d4af37'; // Color dorado medieval para ropa/armadura
+
+            // Lógica de animación de extremidades (bucle de 4 frames: pie1_adelante, idle, pie2_adelante, idle)
+            let offsetMano, offsetPie;
+            switch(jugador.frame) {
+                case 0: offsetMano = 0; offsetPie = 0; break; // Idle
+                case 1: offsetMano = 2; offsetPie = -3; break; // Pie1 Adelante
+                case 2: offsetMano = 0; offsetPie = 0; break; // Idle
+                case 3: offsetMano = -2; offsetPie = 3; break; // Pie2 Adelante
+            }
+
+            // Dibujar Manos (bloques laterales pequeños)
+            ctx.fillRect(drawX, drawY + 8 + offsetMano, 4, 6); // Mano 1
+            ctx.fillRect(drawX + jugador.w - 4, drawY + 8 - offsetMano, 4, 6); // Mano 2
+
+            // Dibujar Patas (bloques inferiores pequeños)
+            ctx.fillStyle = '#8b4513'; // Color botas
+            ctx.fillRect(drawX + 2, drawY + jugador.h - 6 + offsetPie, 6, 6); // Pata 1
+            ctx.fillRect(drawX + jugador.w - 8, drawY + jugador.h - 6 - offsetPie, 6, 6); // Pata 2
+
+            // 5. Detalles de Cara (Ojos pixelados negros)
+            ctx.fillStyle = '#000';
+            ctx.fillRect(drawX + 8, drawY + 2, 2, 2); // Ojo 1
+            ctx.fillRect(drawX + 12, drawY + 2, 2, 2); // Ojo 2
+
+            ctx.restore();
+        }
+
+        // Iniciar el bucle de juego
+        buclePrincipal();
+
     </script>
 </body>
 </html>
